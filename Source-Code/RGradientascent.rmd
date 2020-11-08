@@ -1,0 +1,210 @@
+---
+title: "Untitled"
+author: "abs"
+date: "03/06/2020"
+output:
+  word_document: default
+  html_document: default
+---
+## In this section the implementation of Gradient Ascent algorithm on the heart dataset will be done.
+The first part is to import the dataset on which the algoruthm will be implemented. following code is used for importing the dataset into R
+
+```{r}
+library(readr)
+SAheart <- read_csv("SAheart.data")
+View(SAheart)
+```
+
+The above code is used for the importing of dataset. It is observed that it has 462 observations with 11 variable.
+Firstly a brief look at the dataset is required which can be achieved through below option.
+
+```{r}
+str(SAheart)
+```
+The above structure of the dataset tells that all the variables are numeric in nature except 'famhist' which is a character type. It is also observed that the response variable whcih is 'chd' is also numeric. As for the logistic regression problem the class variable should be in factor like 0 and 1 thus this variable will be converted to factor variable with two classes 0 and 1.
+
+Also as the prediction and training of the dataset is to be done using a single 'x' variable which is ldl(low density lipoprotein cholesterol) thus the dataset will be modified and only these two variables will be reatined fro further calculation and building of model. The following code is used to achieve the above objective.
+```{r}
+SAheart_data <- SAheart[,c("ldl","chd")]
+```
+
+## NOrmalization of feature variable
+
+The feature variable has values that could range from very low to very high. To make the estimator of response so that no one feature value overwhelm the value of small one, and to make the convergence faster normalization of feature is used. There are many ways through which it can be achieved like to have values of feature from 0 to 1 the actual value can be subtracted from the minimum value and the result can be divided by the difference between the minimum and maximum value. Another is to have the zero mean of the feature variable which can be achieved by subtracting the value of feature with the mean and dividing the result with the standard deviation. For this analysis the later approach will be used.
+
+```{r}
+mu_x <- mean(SAheart_data$ldl)
+mu_x
+sigma_x <- sd(SAheart_data$ldl)
+sigma_x
+```
+The above code gets the value of mean as 4.740325 and the avlue of standard deviation as 2.070909. The next ste is to normalize the feature.
+```{r}
+SAheart_data$ldl <- (SAheart_data$ldl - mu_x)/sigma_x
+```
+To ckeck the feature variable is normalized:- 
+```{r}
+mean(SAheart_data$ldl)
+```
+
+The mean value is -8.420712e-17 which is close to zero. Thus the normaization of feature is achieved.
+
+## Spliting the dataset in test and train
+To know the accuracy of the model created and to verify the dataset is divided into two groups with train dataset and test daatset. For training more points are used as this will generalise the model and to get the effective values of parameter. This is done with following code.
+```{r}
+train_data = SAheart_data[1:100,]
+test_data = SAheart_data[101:130,]
+
+```
+
+In the train dataset there are 100 rows of the orignal dataset and in the test dataset there are 30 rows after.
+
+## Initialization of parameter values.
+As there is only one feature to be used the parameter will have two values which are beta_0 and beta_1. initializing the value of parameter to some number is achieved through following code.
+```{r}
+beta <- rep(0,2)
+```
+
+## Value of objective function l(beta)
+The value is achieved by substituting the values of feature and parameter first in the probability estimator of class varibale.
+```{r}
+X <- as.matrix(train_data$ldl)
+y <- as.matrix(train_data$chd)
+
+p = exp(beta[1]+beta[ 2 ]*X ) /(1+exp(beta[1]+beta[ 2 ]*X ) ) 
+```
+
+## defining the learning rate and tolerance limit.
+How the model is learned at each stage of processing and deciding the speed of convergence learning rate is used. It should be such a value that the maximum likelihood can be observed so it has to be that slow enough and should be that fast that it shoots to the other side of maximum likelihood value without interpreting that value. Tolerance limit will define the error with which the convergence can be made. 
+
+```{r}
+learning_rate <- seq(0,1,0.2)
+epsilon = 0.001
+```
+
+The above code generates 6 values of learning rate from 0 to 1 and set the tolerance limit as 0.001
+
+## Calculating the Gradient
+The next step is to maximize the objective function. This is achieved through the loop where the initial values are fed the gradient is calculated for each feature and then the values of parameter are updated till the convergence is achieved within the tolerance limits. 
+
+```{r}
+sigmoid <- function(z) 1/(1 + exp(-1*z))
+
+beta = c(0.1,2)
+
+ascent_algo<- function(beta,X,y,learning_rate)
+{
+  for ( i  in 1 : 100  )
+    { 
+    
+    p = exp(beta[1]+beta[ 2 ]*X[i] ) /(1+exp(beta[1]+beta[ 2 ]*X[i] ) )
+    g = colMeans ( cbind( y[i]−p , ( y[i]−p)*X[i] ) )
+    beta = beta + learning_rate*g
+    
+    
+  }
+  return(beta)
+}
+
+```
+
+The baove code is for the gradient ascent algorithm, where first the sigmoid function is defined using its defination. Then the ascent_algo functions is defined which takes the value of training data, response variable of that training data and learning rate. First the probabilities of the class labels is calculated. The probabilities are then fed to the maximum likelihood function and values of gradient is calculated. The values are assigned to the vector g. The parameters value are then updated based on the learning rate and the gradient value.
+The above function returns the parameters based on the gradient ascent algorithm
+
+## Updating parameters and convergence 
+The ascent function is then used to optimize the values of parameters based on the tolerance limit and for a defined learning rate. Below code has taken the initail value of tolerance as 0.9 and the desired value of tolerance as 0.001. The algorithm converges when the difference between the input parameters and the calculated parameters is 0.001.
+```{r}
+
+
+beta_test <- beta
+epsilon_e <- 0.9
+while (epsilon_e > 0.001) {
+  answer <- ascent_algo(beta_test,X,y,learning_rate = 0.2)
+  beta_new <- answer
+  epsilon_e <- max(abs(beta_test - beta_new))
+  beta_test <- beta_new
+  
+}
+ 
+
+```
+
+## Completeing the implementation
+To complete the implimentation of gradient ascent algorithm, the model prediction is used. If the accuracy is not goo denough then learning rate can be changed accordingly.For its implementation it is assumed that for probability values of greater than 0.5 the class label assigned to them will be 1 and if the probability value is less than 0.5 then it will assigned the class 0.
+
+```{r}
+
+for (i in 1:100)
+{p[i] = exp(beta_new[1]+beta_new[ 2 ]*X[i] ) /(1+exp(beta_new[1]+beta_new[ 2 ]*X[i] ))
+}
+  
+p[p>0.5] <- 1
+p[p<0.5] <- 0
+
+# Finding accuracy of the model
+accuracy <- (sum(p==y, na.rm=T))/ length(p)*100
+accuracy
+
+
+```
+
+The above model at learning rate of 0.2 gives accuracy of only 63%. To optimize it different value of learning rate and tolerance will be used.
+```{r}
+beta_test <- rep(0,2)
+epsilon_e <- 1
+while (epsilon_e > 0.001) {
+  answer <- ascent_algo(beta_test,X,y,learning_rate = 0.5)
+  beta_new <- answer
+  epsilon_e <- max(abs(beta_test - beta_new))
+  beta_test <- beta_new
+  
+}
+
+for (i in 1:100)
+{p[i] = exp(beta_new[1]+beta_new[ 2 ]*X[i] ) /(1+exp(beta_new[1]+beta_new[ 2 ]*X[i] ))
+}
+
+p[p>0.5] <- 1
+p[p<0.5] <- 0
+
+# Finding accuracy of the model
+accuracy <- (sum(p==y, na.rm=T))/ length(p)*100
+accuracy
+```
+
+For learning rate of 0.5 and tolerance at 0.001 the accuracy achieved is 65%, whereas for learning rate of 0.3 it is 64%. So for the completion of model training the value of learning_rate as 0.5 is chosen which gives the parameters as:-
+beta_0 = -0.97 and beta_1 = 1.1
+
+## Predict the labels for set of test examples
+The above parameter values will be used now on the training set to determine how well the gradient descent model is able to predict the labels.
+It is achieved through following code
+
+```{r}
+X_feature <- as.matrix(test_data$ldl)
+y_label <- as.matrix(test_data$chd)
+row_test <- nrow(X_feature)
+col_test <- ncol(X_feature)
+p_y <- matrix(NA,row_test,col_test)
+
+# Calculating the probabilities based on the parameter value
+
+for (i in 1:row_test)
+{p_y[i] = exp(beta_new[1]+beta_new[ 2 ]*X_feature[i] ) /(1+exp(beta_new[1]+beta_new[ 2 ]*X_feature[i] ))
+}
+
+p_y[p_y>0.5] <- 1
+p_y[p_y<0.5] <- 0
+
+# Finding accuracy of the model
+accuracy_test <- (sum(p_y==y_label, na.rm=T))/ length(p_y)*100
+accuracy_test
+
+# [1] 73.33333
+
+
+```
+
+Testing the accuarcy of the model on the test dataset gives 73.33 % which is a good accuracy score.
+
+## Conclusion
+In this way the gradient ascent algorithm was used for predicting the disease based on the single feature of the dataset. There can be various modifications that could be done like including other features to determine the disease.This can modify the model to a large extent and also include various symptoms that could be used for the determination of disease.
